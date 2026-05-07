@@ -27,7 +27,7 @@ else
    {
    for (source = 1; source < proc_n; source++)
       {
-      MPI_Recv (message, 100, MPI_CHAR , source, tag, MPI_COMM_WORLD, &status);
+      MPI_Recv (message, 100, MPI_CHAR , MPI_ANY_SOURCE, tag, MPI_COMM_WORLD, &status);
       printf("%s\n", message);
       }
    }
