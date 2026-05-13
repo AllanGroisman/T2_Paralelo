@@ -6,10 +6,16 @@ main(int argc, char **argv)
     int my_rank; // Identificador deste processo
     int proc_n;  // Numero de processos disparados pelo usuario na linha de comando (np)
     int message; // Buffer para as mensagens
-    int disco[5] = {1, 2, 3, 4, 5};
+    int disco[1000000];
     MPI_Status status; // estrutura que guarda o estado de retorno
 
     double t1, t2; // tempo inicial e final
+
+    for (size_t i = 0; i < 1000000; i++)
+    {
+        disco[i] = i;
+    }
+
 
     MPI_Init(&argc, &argv); // funcao que inicializa o MPI, todo o codigo paralelo estah abaixo
 
