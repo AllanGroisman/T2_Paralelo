@@ -64,7 +64,7 @@ main(int argc, char **argv)
 
     if (my_rank == proc_n - 1)
     {
-        MPI_Send(&t2, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD); // envio para a direita
+        MPI_Send(&message, 1, MPI_INT, 0, 1, MPI_COMM_WORLD); // envio para a direita
     }
 
     MPI_Finalize();
