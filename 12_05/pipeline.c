@@ -37,23 +37,31 @@ main(int argc, char **argv)
             MPI_Recv(&message, 1, MPI_INT, my_rank - 1, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebo da esquerda
 
         // processo mensagem
-        printf("Pid: %d, mensagem %d\n", my_rank, message); // mostro mensagem na tela
+        //printf("Pid: %d, mensagem %d\n", my_rank, message); // mostro mensagem na tela
         message += 1;                                       // incremento um na mensagem recebida
 
         // enviar para a direita
 
         if (my_rank == proc_n - 1)
         {                                                                   // sou o utlimo?
-            printf("Pid: %d, sou o ultimo!\n", my_rank);                    // mostro mensagem na tela pois sou o ultimo
+            //printf("Pid: %d, sou o ultimo!\n", my_rank);                    // mostro mensagem na tela pois sou o ultimo
         }
         else
             MPI_Send(&message, 1, MPI_INT, my_rank + 1, 1, MPI_COMM_WORLD); // envio para a direita
     }
 
+    if (my_rank == 0)
+    {
+        MPI_Recv(t2, 1, MPI_DOUBLE, proc_n - 1, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebo da esquerda
+        printf("\nTempo de execucao: %f\n\n", t2-t1);   
+
+    }
+
     if (my_rank == proc_n - 1)
     {
         t2 = MPI_Wtime(); // termina a contagem do tempo
-        printf("\nTempo de execucao: %f\n\n", t2-t1);   
+        MPI_Send(t2, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD); // envio para a direita
+
     }
 
     MPI_Finalize();
