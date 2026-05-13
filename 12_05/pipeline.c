@@ -60,7 +60,7 @@ main(int argc, char **argv)
     if (my_rank == proc_n - 1)
     {
         t2 = MPI_Wtime(); // termina a contagem do tempo
-        MPI_Send(t2, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD); // envio para a direita
+        MPI_Send(&t2, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD); // envio para a direita
 
     }
 
