@@ -52,7 +52,7 @@ main(int argc, char **argv)
 
     if (my_rank == 0)
     {
-        MPI_Recv(t2, 1, MPI_DOUBLE, proc_n - 1, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebo da esquerda
+        MPI_Recv(&t2, 1, MPI_DOUBLE, proc_n - 1, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebo da esquerda
         printf("\nTempo de execucao: %f\n\n", t2-t1);   
 
     }
