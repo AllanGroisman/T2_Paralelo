@@ -39,7 +39,6 @@ main(int argc, char **argv)
         if (my_rank == proc_n - 1)
         {                                                                   // sou o utlimo?
             printf("Pid: %d, sou o ultimo!\n", my_rank);                    // mostro mensagem na tela pois sou o ultimo
-            MPI_Send(&message, 1, MPI_INT, my_rank + 1, 1, MPI_COMM_WORLD); // envio para a direita
         }
         else
             MPI_Send(&message, 1, MPI_INT, my_rank + 1, 1, MPI_COMM_WORLD); // envio para a direita
