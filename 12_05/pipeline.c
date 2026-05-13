@@ -6,7 +6,7 @@ main(int argc, char **argv)
     int my_rank; // Identificador deste processo
     int proc_n;  // Numero de processos disparados pelo usuario na linha de comando (np)
     int message; // Buffer para as mensagens
-    int disco[5];
+    int disco[5] = {1,2,3,4,5};
     MPI_Status status; // estrutura que guarda o estado de retorno
 
     MPI_Init(&argc, &argv); // funcao que inicializa o MPI, todo o codigo paralelo estah abaixo
@@ -14,7 +14,6 @@ main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank); // pega pega o numero do processo atual (rank)
     MPI_Comm_size(MPI_COMM_WORLD, &proc_n);  // pega informacao do numero de processos (quantidade total)
 
-    disco = {1,2,3,4,5};
 
     for (size_t i = 0; i < 5; i++)
     {
