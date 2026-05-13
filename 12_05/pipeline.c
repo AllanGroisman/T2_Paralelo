@@ -27,7 +27,7 @@ main(int argc, char **argv)
         t1 = MPI_Wtime(); // inicia a contagem do tempo
     }
 
-    for (size_t i = 0; i < 5; i++)
+    for (size_t i = 0; i < 1000000; i++)
     {
 
         // receber da esquerda
