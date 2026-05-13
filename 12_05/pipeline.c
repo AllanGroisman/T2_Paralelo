@@ -52,6 +52,8 @@ main(int argc, char **argv)
 
     if (my_rank == 0)
     {
+        printf("\nT1: %f\n\n", t1);   
+
         MPI_Recv(&t2, 1, MPI_DOUBLE, proc_n - 1, MPI_ANY_TAG, MPI_COMM_WORLD, &status); // recebo da esquerda
         printf("\nTempo de execucao: %f\n\n", t2-t1);   
 
@@ -59,6 +61,8 @@ main(int argc, char **argv)
 
     if (my_rank == proc_n - 1)
     {
+        printf("\nT2: %f\n\n", t2);   
+
         t2 = MPI_Wtime(); // termina a contagem do tempo
         MPI_Send(&t2, 1, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD); // envio para a direita
 
