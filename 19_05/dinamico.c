@@ -28,6 +28,8 @@ int main(int argc, char **argv)
 
     printf("--------------------------------");
 
+    printf("\n");
+
     MPI_Init(&argc, &argv); // funcao que inicializa o MPI, todo o codigo paralelo estah abaixo
 
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank); // pega pega o numero do processo atual (rank)
@@ -70,27 +72,20 @@ int main(int argc, char **argv)
     // RECEBIMENTO DO COORDENADOR
     if (my_rank == 0)
     {
-        // NUMERO DE MENSAGENS = TAMANHO
+        // espera receber todas as mensagens
         for (i = 0; i < SIZE; i++)
         {
             // recebo de qualquer um
             MPI_Recv(&message, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
             // vejo quem é o trabalhador
+            printf("%d",&message);
+
         }
 
+        
 
-
-        printf("VETOR AO QUADRADO:");
-        for (i = 0; i < SIZE; i++)
-            printf("%2d  ", vet[i]);
-
-        // se foi o processo de numero 1, coloca o ponteiro la e aadiciona o resultado
+        printf("\n");
     }
 
-    printf("VETOR AO QUADRADO:");
-    for (i = 0; i < SIZE; i++)
-        printf("%2d  ", vet[i]);
-
-    printf("\n");
     free(vet);
 }
