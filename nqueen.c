@@ -13,73 +13,78 @@ int tamanho_tabuleiro; // AxA (tamanho do tabuleiro = número de rainhas)
 int coluna_atual; // usado para verificar se há trabalho (vai de 0 até tamanho_tabuleiro)
 int escravos_vivos;
 
-MPI_Init(); // funcao que inicializa o MPI, todo o código paralelo esta abaixo
-
-MPI_Comm_rank( &my_rank );  // pega pega o numero do processo atual (rank)
-MPI_Comm_size( &proc_n );   // pega informação do numero de processos (quantidade total)
-escravos_vivos = &proc_n - 1;
-
-// se sou o mestre
-if ( my_rank == 0 ) 
+int main(int argc, char **argv)
 {
-    // papel do mestre
-    //rajada inicial de trabalho
-    for (i = 1; i < proc_n; i++) // mando o trabalho para os escravos fazerem
+    MPI_Init(); // funcao que inicializa o MPI, todo o código paralelo esta abaixo
+    MPI_Comm_rank( &my_rank );  // pega pega o numero do processo atual (rank)
+    MPI_Comm_size( &proc_n );   // pega informação do numero de processos (quantidade total)
+    escravos_vivos = &proc_n - 1;
+
+    // se sou o mestre
+    if ( my_rank == 0 ) 
     {
-        if (temTrabalho()) {
-            mandarTrabalhoParaEscravo(i);
+        // papel do mestre
+        //rajada inicial de trabalho
+        for (i = 1; i < proc_n; i++) // mando o trabalho para os escravos fazerem
+        {
+            if (temTrabalho()) {
+                mandarTrabalhoParaEscravo(i);
+            }
+        } 
+
+        int solucoes_possiveis_local;
+        // recebe a mensagem de soluções possíveis do escravo
+        while (temTrabalho()) {
+            // recebo mensagens de qualquer emissor e com qualquer etiqueta (TAG)
+            MPI_Recv(&solucoes_possiveis_local, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
+            solucoes_possiveis += solucoes_possiveis_local; // soma na variável global o nº de soluções possíveis enviadas pelo escravo
+
+            mandarTrabalhoParaEscravo(status.MPI_SOURCE); // pega o id do escravo que enviou o nº de soluções possíveis e manda trabalho novamente para esse escravo
         }
-    } 
 
-    int solucoes_possiveis_local;
-    // recebe a mensagem de soluções possíveis do escravo
-    while (temTrabalho()) {
-        // recebo mensagens de qualquer emissor e com qualquer etiqueta (TAG)
-        MPI_Recv(&solucoes_possiveis_local, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
-        solucoes_possiveis += solucoes_possiveis_local; // soma na variável global o nº de soluções possíveis enviadas pelo escravo
-
-        mandarTrabalhoParaEscravo(status.MPI_SOURCE); // pega o id do escravo que enviou o nº de soluções possíveis e manda trabalho novamente para esse escravo
-    }
-
-    // trabalho acabou
-    while (escravos_vivos != 0) {
-        MPI_Recv(&solucoes_possiveis_local, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
-        solucoes_possiveis += solucoes_possiveis_local; // soma na variável global o nº de soluções possíveis enviadas pelo escravo
-        matarEscravo(status.MPI_SOURCE); // mata o escravo
-    }
-}              
-else               
-{
-    int trabalho;
-    while(1){
-        MPI_Recv(&trabalho, 0);    // recebo do mestre
-         if (trabalho == -1){
-            break;
+        // trabalho acabou
+        while (escravos_vivos != 0) {
+            MPI_Recv(&solucoes_possiveis_local, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
+            solucoes_possiveis += solucoes_possiveis_local; // soma na variável global o nº de soluções possíveis enviadas pelo escravo
+            matarEscravo(status.MPI_SOURCE); // mata o escravo
         }
-        MPI_Send(trabalhar(trabalho), 0); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;  
+    }              
+    else               
+    {
+        int trabalho;
+        while(1){
+            MPI_Recv(&trabalho, 0);    // recebo do mestre
+            if (trabalho == -1){
+                break;
+            }
+            MPI_Send(trabalhar(trabalho), 0); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;  
+        }
+        // papel do escravo
     }
-    // papel do escravo
+
+    MPI_Finalize();
 }
 
-// === FUNÇÕES COORDENADOR ===
-void mandarTrabalhoParaEscravo(int processoEscravo) {
-    MPI_Send(&coluna_atual, processoEscravo); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;
-    coluna_atual++;
-}
+    // === FUNÇÕES COORDENADOR ===
+    void mandarTrabalhoParaEscravo(int processoEscravo) {
+        MPI_Send(&coluna_atual, processoEscravo); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;
+        coluna_atual++;
+    }
 
-bool temTrabalho() {
-    return coluna_atual != tamanho_tabuleiro - 1;
-}
+    bool temTrabalho() {
+        return coluna_atual != tamanho_tabuleiro - 1;
+    }
 
-void matarEscravo(int processoEscravo) {
-    MPI_Send(-1, processoEscravo); 
-    escravos_vivos--;
-}
+    void matarEscravo(int processoEscravo) {
+        MPI_Send(-1, processoEscravo); 
+        escravos_vivos--;
+    }
 
-// === FUNÇÕES ESCRAVO ===
-void trabalhar(int colunaInicial){
-    printf("Recebi e estou calculando %d", colunaInicial);
-    return colunaInicial * colunaInicial;
-}
+    // === FUNÇÕES ESCRAVO ===
+    void trabalhar(int colunaInicial){
+        printf("Recebi e estou calculando %d", colunaInicial);
+        return colunaInicial * colunaInicial;
+    }
 
-MPI_Finalize();
+  
+
