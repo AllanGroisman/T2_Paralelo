@@ -19,6 +19,7 @@ int solucoes_possiveis = 0;
 int tamanho_tabuleiro; // Agora não tem valor fixo inicial
 int coluna_atual = 0; 
 int escravos_vivos;
+double t1, t2; // tempo inicial e final
 
 int main(int argc, char **argv)
 {
@@ -51,6 +52,9 @@ int main(int argc, char **argv)
     // Se sou o mestre
     if ( my_rank == 0 ) 
     {
+        //tempo inicial
+        t1 = MPI_Wtime(); // inicia a contagem do tempo
+
         MPI_Status status;
         int solucoes_possiveis_local;
 
@@ -79,7 +83,8 @@ int main(int argc, char **argv)
             
             matarEscravo(status.MPI_SOURCE); 
         }
-        
+        t2 = MPI_Wtime(); // termina a contagem do tempo
+        printf("\nTempo de execucao: %f\n\n", t2-t1);  
         printf("Mestre: Total de solucoes possiveis encontradas = %d\n", solucoes_possiveis);
     }              
     else               
