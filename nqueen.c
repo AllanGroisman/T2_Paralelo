@@ -74,7 +74,6 @@ int main(int argc, char **argv)
                 break; // Sinal de morte recebido
             }
             
-            // Calcula o resultado e guarda em uma variável para enviar
             int resultado = trabalhar(trabalho);
             MPI_Send(&resultado, 1, MPI_INT, 0, 0, MPI_COMM_WORLD); 
         }
@@ -107,6 +106,62 @@ void matarEscravo(int processoEscravo) {
 // Retorno alterado de void para int para bater com a lógica do código
 int trabalhar(int colunaInicial){
     printf("Escravo %d: Recebi e estou calculando a coluna %d\n", my_rank, colunaInicial);
+    solucoes_possiveis = 0;
+
+    //A PARTIR DAQUI É UMA TAREFA ()
+    //cria um board local para esta thread
+    int board_local[tamanho_tabuleiro];
+
+    memset(board_local, -1, sizeof(board_local));
+
+
+    /* fixa rainha da linha 0 */
+    board_local[0] = colunaInicial;
+
+    //continua na subarvore deste
+    queen(board_local, 2, n, &solucoes_possiveis);
+    
     // Operação dummy apenas para teste
-    return colunaInicial * colunaInicial;
+    return solucoes_possiveis;
+}
+
+// === FUNCOES NQUEENS ===
+//função que verifica se pode por rainha
+int place(int board_local[], int row, int col) {
+    //pra cada linha anterior onde já tem rainhas
+    for (int i = 0; i < row; i++) {
+        //verifica se ta na mesma coluna
+        if (board_local[i] == col)                       
+            return 0;
+        // verifica se ta na mesma diagonal
+        if (abs(board_local[i] - col) == abs(i - row))  
+            return 0;
+    }
+    return 1;
+}
+
+
+void queen(int board_local[], int row, int n, long long *count) {
+    //caso base -> se cheguei no fim do tabuleiro, conto como solução pois todas as rainhas foram postas neste cenario
+    if (row == n) {          
+        (*count)++;
+        return;
+    }
+
+    //se ainda não chegamos,
+    //tenta-se colocar mais uma rainha na linha atual
+    //pra cada coluna do tabuleiro
+    for (int col = 0; col < n; col++) {
+        //se é possível colocar uma rainha
+        if (place(board_local, row, col)) {
+            //poe a rainha
+            board_local[row] = col;
+            //e continua na linha de baixo (row + 1) recursivamente
+            queen(board_local, row + 1, n, count);
+            //tanto faz se achou solucao ou nao, esta rainha é apagada desta posição
+            //assim no proximo ciclo do for é possivel testar a rainha na proxima posicao
+            //gerando o proximo cenario possivel
+            board_local[row] = -1;  
+        }
+    }
 }
