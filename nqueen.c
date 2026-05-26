@@ -15,10 +15,11 @@ MPI_Comm_rank( &my_rank );  // pega pega o numero do processo atual (rank)
 MPI_Comm_size( &proc_n );   // pega informação do numero de processos (quantidade total)
 escravos_vivos = &proc_n - 1;
 
-if ( my_rank == 0 ) // qual o meu papel: sou o mestre ou um dos escravos?
+// se sou o mestre
+if ( my_rank == 0 ) 
 {
     // papel do mestre
-
+    //rajada inicial de trabalho
     for (i = 1; i < proc_n; i++) // mando o trabalho para os escravos fazerem
     {
         if (temTrabalho()) {
@@ -48,17 +49,12 @@ else
     int trabalho;
     while(1){
         MPI_Recv(&trabalho, 0);    // recebo do mestre
-        MPI_Send(trabalhar(trabalho), 0); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;
-        if (trabalho == -1){
+         if (trabalho == -1){
             break;
         }
+        MPI_Send(trabalhar(trabalho), 0); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;  
     }
     // papel do escravo
-
-
-    message = message+1;      // icremento conteúdo da mensagem
-
-    MPI_Send(&message, 0);    // retorno resultado para o mestre
 }
 
 // === FUNÇÕES COORDENADOR ===
@@ -77,9 +73,6 @@ void matarEscravo(int processoEscravo) {
 }
 
 // === FUNÇÕES ESCRAVO ===
-void receberTrabalho() {
-
-}
 void trabalhar(int colunaInicial){
     return colunaInicial * colunaInicial;
 }
