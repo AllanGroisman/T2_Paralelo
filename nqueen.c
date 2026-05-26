@@ -1,90 +1,128 @@
+Realmente, o código tinha vários problemas de sintaxe, desde a forma como as funções do MPI eram chamadas até erros clássicos de C (como falta de protótipos de função e manipulação incorreta de ponteiros).
+
+Aqui está o código corrigido e funcional.
+
+### O que foi arrumado:
+
+* **Assinaturas do MPI:** Funções como `MPI_Init`, `MPI_Comm_rank`, `MPI_Send` e `MPI_Recv` exigem parâmetros específicos (como `MPI_COMM_WORLD`, o tipo de dado `MPI_INT`, e a quantidade `1`). Você estava passando os argumentos pela metade.
+* **Tipos e Variáveis não declaradas:** O tipo `bool` precisa do header `<stdbool.h>`. O `status` no mestre precisava ser declarado como `MPI_Status`. A variável `i` do laço `for` também precisava ser declarada.
+* **Ponteiros e Endereços de Memória:** A linha `escravos_vivos = &proc_n - 1;` estava subtraindo 1 do endereço de memória de `proc_n`, e não do valor em si.
+* **Protótipos de Função:** As funções auxiliares estavam declaradas *depois* da `main` sem protótipos no topo do arquivo. O C precisa saber que elas existem antes de serem chamadas.
+* **Lógica do Tabuleiro:** A variável `tamanho_tabuleiro` estava sem valor inicial (coloquei 8 como padrão) e a lógica de `temTrabalho` ignorava a última coluna.
+* **Envio de constantes no MPI:** Não dá para fazer `MPI_Send(-1, ...)`. Você precisa colocar o `-1` em uma variável e enviar o endereço de memória dela.
+
+### Código Corrigido
+
+```c
 #include <stdio.h>
 #include <stdlib.h>
-#include "mpi.h"
+#include <stdbool.h> // Necessário para usar bool
+#include <mpi.h>     // Header correto do MPI costuma ser <mpi.h>
 
-#define TAREFAS 7 // Numero de tarefas no saco de trabalho para np = 8, processo 0 é o mestre
+// Protótipos das funções
+void mandarTrabalhoParaEscravo(int processoEscravo);
+bool temTrabalho();
+void matarEscravo(int processoEscravo);
+int trabalhar(int colunaInicial);
 
-int my_rank;       // Identificador deste processo
-int proc_n;        // Numero de processos disparados pelo usuário na linha de comando (np)
-int message;       // Buffer para as mensagens 
-int saco[TAREFAS]; // saco de trabalho
-int solucoes_possiveis; // número de soluções possíveis do tabuleiro (coordenador: GLOBAL, trabalhador: LOCAL)
-int tamanho_tabuleiro; // AxA (tamanho do tabuleiro = número de rainhas)
-int coluna_atual; // usado para verificar se há trabalho (vai de 0 até tamanho_tabuleiro)
+// Variáveis Globais
+int my_rank;       
+int proc_n;        
+int solucoes_possiveis = 0; 
+int tamanho_tabuleiro = 8; // Inicializado com 8 (ex: tabuleiro 8x8)
+int coluna_atual = 0; 
 int escravos_vivos;
 
 int main(int argc, char **argv)
 {
-    MPI_Init(); // funcao que inicializa o MPI, todo o código paralelo esta abaixo
-    MPI_Comm_rank( &my_rank );  // pega pega o numero do processo atual (rank)
-    MPI_Comm_size( &proc_n );   // pega informação do numero de processos (quantidade total)
-    escravos_vivos = &proc_n - 1;
+    // Inicialização correta do MPI
+    MPI_Init(&argc, &argv); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);  
+    MPI_Comm_size(MPI_COMM_WORLD, &proc_n);   
+    
+    // Corrigido: tirado o '&' comercial
+    escravos_vivos = proc_n - 1;
 
-    // se sou o mestre
+    // Se sou o mestre
     if ( my_rank == 0 ) 
     {
-        // papel do mestre
-        //rajada inicial de trabalho
-        for (i = 1; i < proc_n; i++) // mando o trabalho para os escravos fazerem
+        MPI_Status status;
+        int solucoes_possiveis_local;
+
+        // Rajada inicial de trabalho
+        for (int i = 1; i < proc_n; i++) 
         {
             if (temTrabalho()) {
                 mandarTrabalhoParaEscravo(i);
             }
         } 
 
-        int solucoes_possiveis_local;
-        // recebe a mensagem de soluções possíveis do escravo
+        // Loop de recebimento e envio (enquanto houver trabalho)
         while (temTrabalho()) {
-            // recebo mensagens de qualquer emissor e com qualquer etiqueta (TAG)
-            MPI_Recv(&solucoes_possiveis_local, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
-            solucoes_possiveis += solucoes_possiveis_local; // soma na variável global o nº de soluções possíveis enviadas pelo escravo
+            // Assinatura correta do MPI_Recv
+            MPI_Recv(&solucoes_possiveis_local, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);  
+            solucoes_possiveis += solucoes_possiveis_local; 
 
-            mandarTrabalhoParaEscravo(status.MPI_SOURCE); // pega o id do escravo que enviou o nº de soluções possíveis e manda trabalho novamente para esse escravo
+            mandarTrabalhoParaEscravo(status.MPI_SOURCE); 
         }
 
-        // trabalho acabou
+        // Trabalho acabou, esperando os escravos terminarem e mandando sinal de morte
         while (escravos_vivos != 0) {
-            MPI_Recv(&solucoes_possiveis_local, MPI_ANY_SOURCE, MPI_ANY_TAG, status);  // recebo por ordem de chegada com any_source
-            solucoes_possiveis += solucoes_possiveis_local; // soma na variável global o nº de soluções possíveis enviadas pelo escravo
-            matarEscravo(status.MPI_SOURCE); // mata o escravo
+            MPI_Recv(&solucoes_possiveis_local, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);  
+            solucoes_possiveis += solucoes_possiveis_local; 
+            
+            matarEscravo(status.MPI_SOURCE); 
         }
+        
+        printf("Mestre: Total de solucoes possiveis calculadas = %d\n", solucoes_possiveis);
     }              
     else               
     {
+        // Papel do escravo
         int trabalho;
+        MPI_Status status;
+        
         while(1){
-            MPI_Recv(&trabalho, 0);    // recebo do mestre
+            // Assinatura correta do MPI_Recv para receber do Mestre (source 0)
+            MPI_Recv(&trabalho, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);    
+            
             if (trabalho == -1){
-                break;
+                break; // Sinal de morte recebido
             }
-            MPI_Send(trabalhar(trabalho), 0); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;  
+            
+            // Calcula o resultado e guarda em uma variável para enviar
+            int resultado = trabalhar(trabalho);
+            MPI_Send(&resultado, 1, MPI_INT, 0, 0, MPI_COMM_WORLD); 
         }
-        // papel do escravo
     }
 
     MPI_Finalize();
+    return 0;
 }
 
-    // === FUNÇÕES COORDENADOR ===
-    void mandarTrabalhoParaEscravo(int processoEscravo) {
-        MPI_Send(&coluna_atual, processoEscravo); // envio trabalho para escravo com id = processoEscravo, com a coluna a ser trabalhada;
-        coluna_atual++;
-    }
+// === FUNÇÕES COORDENADOR ===
+void mandarTrabalhoParaEscravo(int processoEscravo) {
+    // Assinatura correta do MPI_Send
+    MPI_Send(&coluna_atual, 1, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
+    coluna_atual++;
+}
 
-    bool temTrabalho() {
-        return coluna_atual != tamanho_tabuleiro - 1;
-    }
+bool temTrabalho() {
+    // Corrigido para garantir que pegue todas as colunas de 0 até (tamanho_tabuleiro - 1)
+    return coluna_atual < tamanho_tabuleiro;
+}
 
-    void matarEscravo(int processoEscravo) {
-        MPI_Send(-1, processoEscravo); 
-        escravos_vivos--;
-    }
+void matarEscravo(int processoEscravo) {
+    int sinal_de_morte = -1;
+    // Precisamos enviar a referência de uma variável, não a constante diretamente
+    MPI_Send(&sinal_de_morte, 1, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
+    escravos_vivos--;
+}
 
-    // === FUNÇÕES ESCRAVO ===
-    void trabalhar(int colunaInicial){
-        printf("Recebi e estou calculando %d", colunaInicial);
-        return colunaInicial * colunaInicial;
-    }
-
-  
-
+// === FUNÇÕES ESCRAVO ===
+// Retorno alterado de void para int para bater com a lógica do código
+int trabalhar(int colunaInicial){
+    printf("Escravo %d: Recebi e estou calculando a coluna %d\n", my_rank, colunaInicial);
+    // Operação dummy apenas para teste
+    return colunaInicial * colunaInicial;
+}
