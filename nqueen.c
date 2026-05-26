@@ -1,19 +1,3 @@
-Realmente, o código tinha vários problemas de sintaxe, desde a forma como as funções do MPI eram chamadas até erros clássicos de C (como falta de protótipos de função e manipulação incorreta de ponteiros).
-
-Aqui está o código corrigido e funcional.
-
-### O que foi arrumado:
-
-* **Assinaturas do MPI:** Funções como `MPI_Init`, `MPI_Comm_rank`, `MPI_Send` e `MPI_Recv` exigem parâmetros específicos (como `MPI_COMM_WORLD`, o tipo de dado `MPI_INT`, e a quantidade `1`). Você estava passando os argumentos pela metade.
-* **Tipos e Variáveis não declaradas:** O tipo `bool` precisa do header `<stdbool.h>`. O `status` no mestre precisava ser declarado como `MPI_Status`. A variável `i` do laço `for` também precisava ser declarada.
-* **Ponteiros e Endereços de Memória:** A linha `escravos_vivos = &proc_n - 1;` estava subtraindo 1 do endereço de memória de `proc_n`, e não do valor em si.
-* **Protótipos de Função:** As funções auxiliares estavam declaradas *depois* da `main` sem protótipos no topo do arquivo. O C precisa saber que elas existem antes de serem chamadas.
-* **Lógica do Tabuleiro:** A variável `tamanho_tabuleiro` estava sem valor inicial (coloquei 8 como padrão) e a lógica de `temTrabalho` ignorava a última coluna.
-* **Envio de constantes no MPI:** Não dá para fazer `MPI_Send(-1, ...)`. Você precisa colocar o `-1` em uma variável e enviar o endereço de memória dela.
-
-### Código Corrigido
-
-```c
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h> // Necessário para usar bool
