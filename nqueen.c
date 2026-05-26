@@ -119,7 +119,7 @@ int trabalhar(int colunaInicial){
     board_local[0] = colunaInicial;
 
     //continua na subarvore deste
-    queen(board_local, 2, n, &solucoes_possiveis);
+    queen(board_local, 2, tamanho_tabuleiro, &solucoes_possiveis);
     
     // Operação dummy apenas para teste
     return solucoes_possiveis;
