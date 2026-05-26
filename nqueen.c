@@ -1,4 +1,8 @@
-#define TAREFAS 7; // Numero de tarefas no saco de trabalho para np = 8, processo 0 é o mestre
+#include <stdio.h>
+#include <stdlib.h>
+#include "mpi.h"
+
+#define TAREFAS 7 // Numero de tarefas no saco de trabalho para np = 8, processo 0 é o mestre
 
 int my_rank;       // Identificador deste processo
 int proc_n;        // Numero de processos disparados pelo usuário na linha de comando (np)
@@ -74,6 +78,7 @@ void matarEscravo(int processoEscravo) {
 
 // === FUNÇÕES ESCRAVO ===
 void trabalhar(int colunaInicial){
+    printf("Recebi e estou calculando %d", colunaInicial);
     return colunaInicial * colunaInicial;
 }
 
