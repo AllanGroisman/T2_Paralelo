@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <string.h> // Adicionado para o memset
+#include <string.h> 
 #include <mpi.h>     
 
 // Protótipos das funções
@@ -10,13 +10,13 @@ bool temTrabalho();
 void matarEscravo(int processoEscravo);
 int trabalhar(int colunaInicial);
 int place(int board_local[], int row, int col);
-void queen(int board_local[], int row, int n, int *count); // Alterado para int *
+void queen(int board_local[], int row, int n, int *count); 
 
-// Variáveis Globais (O Mestre usa para controle, cada Escravo terá sua cópia na sua memória)
+// Variáveis Globais 
 int my_rank;       
 int proc_n;        
 int solucoes_possiveis = 0; 
-int tamanho_tabuleiro = 8; 
+int tamanho_tabuleiro; // Agora não tem valor fixo inicial
 int coluna_atual = 0; 
 int escravos_vivos;
 
@@ -26,6 +26,26 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);  
     MPI_Comm_size(MPI_COMM_WORLD, &proc_n);   
     
+    // Verificação dos argumentos de linha de comando
+    if (argc != 2) {
+        if (my_rank == 0) {
+            printf("Uso correto: mpirun -np <processos> %s <numero_de_rainhas>\n", argv[0]);
+        }
+        MPI_Finalize();
+        return 0;
+    }
+
+    // Pega o argumento digitado no terminal e converte para int
+    tamanho_tabuleiro = atoi(argv[1]);
+
+    if (tamanho_tabuleiro <= 0) {
+        if (my_rank == 0) {
+            printf("Erro: O numero de rainhas deve ser maior que 0.\n");
+        }
+        MPI_Finalize();
+        return 0;
+    }
+
     escravos_vivos = proc_n - 1;
 
     // Se sou o mestre
@@ -33,6 +53,8 @@ int main(int argc, char **argv)
     {
         MPI_Status status;
         int solucoes_possiveis_local;
+
+        printf("Mestre: Iniciando calculo para tabuleiro %dx%d com %d processos.\n", tamanho_tabuleiro, tamanho_tabuleiro, proc_n);
 
         // Rajada inicial de trabalho
         for (int i = 1; i < proc_n; i++) 
@@ -100,15 +122,12 @@ void matarEscravo(int processoEscravo) {
 
 // === FUNÇÕES ESCRAVO ===
 int trabalhar(int colunaInicial){
-    printf("Escravo %d: Recebi e estou calculando a coluna inicial %d\n", my_rank, colunaInicial);
-    
-    // Variável local para armazenar as soluções desta subárvore específica
     int solucoes_locais = 0;
-
+    
+    // O tamanho do array agora é dinâmico com base no argumento passado
     int board_local[tamanho_tabuleiro];
     memset(board_local, -1, sizeof(board_local));
 
-    /* Fixa a rainha da linha 0 na coluna recebida */
     board_local[0] = colunaInicial;
 
     queen(board_local, 1, tamanho_tabuleiro, &solucoes_locais);
@@ -127,7 +146,7 @@ int place(int board_local[], int row, int col) {
     return 1;
 }
 
-void queen(int board_local[], int row, int n, int *count) { // Alterado para int *
+void queen(int board_local[], int row, int n, int *count) { 
     if (row == n) {          
         (*count)++;
         return;
