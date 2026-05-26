@@ -8,7 +8,7 @@
 void mandarTrabalhoParaEscravo(int processoEscravo);
 bool temTrabalho();
 void matarEscravo(int processoEscravo);
-int trabalhar(int colunaInicial);
+int trabalhar(int colunasIniciais[2]);
 int place(int board_local[], int row, int col);
 void queen(int board_local[], int row, int n, int *count); 
 
@@ -16,10 +16,14 @@ void queen(int board_local[], int row, int n, int *count);
 int my_rank;       
 int proc_n;        
 int solucoes_possiveis = 0; 
-int tamanho_tabuleiro; // Agora não tem valor fixo inicial
-int coluna_atual = 0; 
+int tamanho_tabuleiro; 
 int escravos_vivos;
-double t1, t2; // tempo inicial e final
+double t1, t2; // Tempo inicial e final
+
+// Estrutura do saco de tarefas (Nível 2)
+int saco_de_tarefas[1000][2]; 
+int total_tarefas = 0;
+int tarefa_atual = 0; 
 
 int main(int argc, char **argv)
 {
@@ -36,7 +40,6 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    // Pega o argumento digitado no terminal e converte para int
     tamanho_tabuleiro = atoi(argv[1]);
 
     if (tamanho_tabuleiro <= 0) {
@@ -52,15 +55,28 @@ int main(int argc, char **argv)
     // Se sou o mestre
     if ( my_rank == 0 ) 
     {
-        //tempo inicial
-        t1 = MPI_Wtime(); // inicia a contagem do tempo
+        // 1. Gerar o saco de tarefas (combinações válidas das linhas 0 e 1)
+        for(int c0 = 0; c0 < tamanho_tabuleiro; c0++) {
+            for(int c1 = 0; c1 < tamanho_tabuleiro; c1++) {
+                // Verifica se as rainhas nas duas primeiras linhas não se atacam
+                if (c1 != c0 && abs(c1 - c0) != 1) {
+                    saco_de_tarefas[total_tarefas][0] = c0;
+                    saco_de_tarefas[total_tarefas][1] = c1;
+                    total_tarefas++;
+                }
+            }
+        }
+
+        printf("Mestre: Iniciando calculo para tabuleiro %dx%d com %d processos.\n", tamanho_tabuleiro, tamanho_tabuleiro, proc_n);
+        printf("Mestre: Total de tarefas geradas no saco de trabalho = %d\n", total_tarefas);
+
+        // Tempo inicial
+        t1 = MPI_Wtime(); 
 
         MPI_Status status;
         int solucoes_possiveis_local;
 
-        printf("Mestre: Iniciando calculo para tabuleiro %dx%d com %d processos.\n", tamanho_tabuleiro, tamanho_tabuleiro, proc_n);
-
-        // Rajada inicial de trabalho
+        // 2. Rajada inicial de trabalho
         for (int i = 1; i < proc_n; i++) 
         {
             if (temTrabalho()) {
@@ -68,7 +84,7 @@ int main(int argc, char **argv)
             }
         } 
 
-        // Loop de recebimento e envio (enquanto houver trabalho)
+        // 3. Loop de recebimento e envio (enquanto houver trabalho)
         while (temTrabalho()) {
             MPI_Recv(&solucoes_possiveis_local, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);  
             solucoes_possiveis += solucoes_possiveis_local; 
@@ -76,27 +92,31 @@ int main(int argc, char **argv)
             mandarTrabalhoParaEscravo(status.MPI_SOURCE); 
         }
 
-        // Trabalho acabou, finaliza os escravos
+        // 4. Trabalho acabou, finaliza os escravos
         while (escravos_vivos != 0) {
             MPI_Recv(&solucoes_possiveis_local, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);  
             solucoes_possiveis += solucoes_possiveis_local; 
             
             matarEscravo(status.MPI_SOURCE); 
         }
-        t2 = MPI_Wtime(); // termina a contagem do tempo
-        printf("\nTempo de execucao: %f\n\n", t2-t1);  
+
+        t2 = MPI_Wtime(); // Tempo final
+
+        printf("\nTempo de execucao: %f segundos\n", t2-t1);  
         printf("Mestre: Total de solucoes possiveis encontradas = %d\n", solucoes_possiveis);
     }              
     else               
     {
         // Papel do escravo
-        int trabalho;
+        int trabalho[2];
         MPI_Status status;
         
         while(1){
-            MPI_Recv(&trabalho, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);    
+            // Recebe 2 inteiros (coluna da linha 0 e coluna da linha 1)
+            MPI_Recv(trabalho, 2, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);    
             
-            if (trabalho == -1){
+            // Verifica o sinal de morte no primeiro elemento do array
+            if (trabalho[0] == -1){
                 break; 
             }
             
@@ -111,31 +131,35 @@ int main(int argc, char **argv)
 
 // === FUNÇÕES COORDENADOR ===
 void mandarTrabalhoParaEscravo(int processoEscravo) {
-    MPI_Send(&coluna_atual, 1, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
-    coluna_atual++;
+    // Envia o array de 2 posições
+    MPI_Send(saco_de_tarefas[tarefa_atual], 2, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
+    tarefa_atual++;
 }
 
 bool temTrabalho() {
-    return coluna_atual < tamanho_tabuleiro;
+    return tarefa_atual < total_tarefas;
 }
 
 void matarEscravo(int processoEscravo) {
-    int sinal_de_morte = -1;
-    MPI_Send(&sinal_de_morte, 1, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
+    int sinal_de_morte[2] = {-1, -1};
+    // Envia um array com -1 para matar o escravo
+    MPI_Send(sinal_de_morte, 2, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
     escravos_vivos--;
 }
 
 // === FUNÇÕES ESCRAVO ===
-int trabalhar(int colunaInicial){
+int trabalhar(int colunasIniciais[2]){
     int solucoes_locais = 0;
     
-    // O tamanho do array agora é dinâmico com base no argumento passado
     int board_local[tamanho_tabuleiro];
-    memset(board_local, -1, sizeof(board_local));
+    memset(board_local, -1, sizeof(int) * tamanho_tabuleiro);
 
-    board_local[0] = colunaInicial;
+    // Fixa as rainhas das linhas 0 e 1 com base no trabalho recebido
+    board_local[0] = colunasIniciais[0];
+    board_local[1] = colunasIniciais[1];
 
-    queen(board_local, 1, tamanho_tabuleiro, &solucoes_locais);
+    // Inicia a recursão da linha 2 em diante
+    queen(board_local, 2, tamanho_tabuleiro, &solucoes_locais);
     
     return solucoes_locais;
 }
@@ -165,3 +189,4 @@ void queen(int board_local[], int row, int n, int *count) {
         }
     }
 }
+
