@@ -60,10 +60,10 @@ int main(int argc, char **argv)
         for(int c0 = 0; c0 < tamanho_tabuleiro; c0++) {
             board_temp[0] = c0;
             for(int c1 = 0; c1 < tamanho_tabuleiro; c1++) {
-                if (!place(board_temp, 1, c1)) continue;
+               
                 board_temp[1] = c1;
                 for(int c2 = 0; c2 < tamanho_tabuleiro; c2++) {
-                    if (!place(board_temp, 2, c2)) continue;
+                    board_temp[2] = c2;
                     saco_de_tarefas[total_tarefas][0] = c0;
                     saco_de_tarefas[total_tarefas][1] = c1;
                     saco_de_tarefas[total_tarefas][2] = c2;
