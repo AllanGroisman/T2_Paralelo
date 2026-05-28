@@ -8,7 +8,7 @@
 void mandarTrabalhoParaEscravo(int processoEscravo);
 bool temTrabalho();
 void matarEscravo(int processoEscravo);
-int trabalhar(int colunasIniciais[2]);
+int trabalhar(int colunasIniciais[3]);
 int place(int board_local[], int row, int col);
 void queen(int board_local[], int row, int n, int *count); 
 
@@ -20,8 +20,8 @@ int tamanho_tabuleiro;
 int escravos_vivos;
 double t1, t2; // Tempo inicial e final
 
-// Estrutura do saco de tarefas (Nível 2)
-int saco_de_tarefas[1000][2]; 
+// Estrutura do saco de tarefas (Nível 3: colunas das 3 primeiras linhas)
+int saco_de_tarefas[100000][3];
 int total_tarefas = 0;
 int tarefa_atual = 0; 
 
@@ -55,13 +55,18 @@ int main(int argc, char **argv)
     // Se sou o mestre
     if ( my_rank == 0 ) 
     {
-        // 1. Gerar o saco de tarefas (combinações válidas das linhas 0 e 1)
+        // 1. Gerar o saco de tarefas (combinações válidas das linhas 0, 1 e 2)
+        int board_temp[tamanho_tabuleiro];
         for(int c0 = 0; c0 < tamanho_tabuleiro; c0++) {
+            board_temp[0] = c0;
             for(int c1 = 0; c1 < tamanho_tabuleiro; c1++) {
-                // Verifica se as rainhas nas duas primeiras linhas não se atacam
-                if (c1 != c0 && abs(c1 - c0) != 1) {
+                if (!place(board_temp, 1, c1)) continue;
+                board_temp[1] = c1;
+                for(int c2 = 0; c2 < tamanho_tabuleiro; c2++) {
+                    if (!place(board_temp, 2, c2)) continue;
                     saco_de_tarefas[total_tarefas][0] = c0;
                     saco_de_tarefas[total_tarefas][1] = c1;
+                    saco_de_tarefas[total_tarefas][2] = c2;
                     total_tarefas++;
                 }
             }
@@ -108,12 +113,12 @@ int main(int argc, char **argv)
     else               
     {
         // Papel do escravo
-        int trabalho[2];
+        int trabalho[3];
         MPI_Status status;
-        
+
         while(1){
-            // Recebe 2 inteiros (coluna da linha 0 e coluna da linha 1)
-            MPI_Recv(trabalho, 2, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);    
+            // Recebe 3 inteiros (colunas das linhas 0, 1 e 2)
+            MPI_Recv(trabalho, 3, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
             
             // Verifica o sinal de morte no primeiro elemento do array
             if (trabalho[0] == -1){
@@ -131,8 +136,8 @@ int main(int argc, char **argv)
 
 // === FUNÇÕES COORDENADOR ===
 void mandarTrabalhoParaEscravo(int processoEscravo) {
-    // Envia o array de 2 posições
-    MPI_Send(saco_de_tarefas[tarefa_atual], 2, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
+    // Envia o array de 3 posições
+    MPI_Send(saco_de_tarefas[tarefa_atual], 3, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD);
     tarefa_atual++;
 }
 
@@ -141,25 +146,26 @@ bool temTrabalho() {
 }
 
 void matarEscravo(int processoEscravo) {
-    int sinal_de_morte[2] = {-1, -1};
+    int sinal_de_morte[3] = {-1, -1, -1};
     // Envia um array com -1 para matar o escravo
-    MPI_Send(sinal_de_morte, 2, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD); 
+    MPI_Send(sinal_de_morte, 3, MPI_INT, processoEscravo, 0, MPI_COMM_WORLD);
     escravos_vivos--;
 }
 
 // === FUNÇÕES ESCRAVO ===
-int trabalhar(int colunasIniciais[2]){
+int trabalhar(int colunasIniciais[3]){
     int solucoes_locais = 0;
-    
+
     int board_local[tamanho_tabuleiro];
     memset(board_local, -1, sizeof(int) * tamanho_tabuleiro);
 
-    // Fixa as rainhas das linhas 0 e 1 com base no trabalho recebido
+    // Fixa as rainhas das linhas 0, 1 e 2 com base no trabalho recebido
     board_local[0] = colunasIniciais[0];
     board_local[1] = colunasIniciais[1];
+    board_local[2] = colunasIniciais[2];
 
-    // Inicia a recursão da linha 2 em diante
-    queen(board_local, 2, tamanho_tabuleiro, &solucoes_locais);
+    // Inicia a recursão da linha 3 em diante
+    queen(board_local, 3, tamanho_tabuleiro, &solucoes_locais);
     
     return solucoes_locais;
 }
